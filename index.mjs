@@ -15,14 +15,14 @@ function msg(items) {
     const messageSet = new Set(messages.map(({ content }) => content));
 
     // Send to channel if not in message set
-    items.forEach((item) => {
-      if (messageSet.has(item)) {
-        console.log(`duplicate: ${item}`);
-      } else {
-        console.log(`Posting: ${item}`);
-        channel.send(item);
+    const sending = items.reduce((acc, item) => {
+      if (!messageSet.has(item)) {
+        acc.push(channel.send(item));
       }
-    });
+      return acc;
+    }, []);
+
+    await Promise.all(sending);
 
     process.exit(0);
   });
