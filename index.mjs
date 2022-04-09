@@ -2,44 +2,48 @@ import dotenv from "dotenv";
 dotenv.config();
 import fxparser from "fast-xml-parser";
 import fetch from "node-fetch";
-
+import fs from "fs";
 import { Client, Intents } from "discord.js";
 
-function msg(items) {
+const SEEN_PATH = "./seen.json";
+const seen = new Set(JSON.parse(fs.readFileSync(SEEN_PATH)));
+
+const FEED_URL = `https://stackoverflow.com/feeds/tag/${process.env.TAG}`;
+const parser = new fxparser.XMLParser();
+
+async function run() {
+  // Fetch StackOverflow feed
+  const feed = await (await fetch(FEED_URL)).text();
+  // Parse feed and keep most recent five
+  const entries = parser
+    .parse(feed)
+    .feed.entry.map(({ title, id }) => ({ title, id }))
+    .slice(0, 4);
+  // Keep entries that haven't been seen before
+  const newEntries = entries.filter((entry) => !seen.has(entry.id));
+  if (newEntries.length === 0) {
+    console.log("No new posts");
+    return;
+  }
+
+  // At this point we have new posts, send them to the channel
   const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
-
+  client.login(process.env.TOKEN);
   client.on("ready", async () => {
-    console.log(`Logged in as ${client.user.tag}!`);
     const channel = client.channels.cache.get(process.env.CHANNEL);
-    const messages = await channel.messages.fetch({ limit: 100 });
-    const messageSet = new Set(messages.map(({ content }) => content));
-
-    // Send to channel if not in message set
-    const sending = items.reduce((acc, item) => {
-      if (!messageSet.has(item)) {
-        acc.push(channel.send(item));
-      }
-      return acc;
-    }, []);
-
+    // Array of promises sending to channel
+    const sending = newEntries.map(({ id, title }) => {
+      const text = `${title} - ${id}`;
+      console.log(`Sending: ${text}`);
+      return channel.send(text);
+    });
     await Promise.all(sending);
-
+    // Success, save the new entries
+    const newSeen = [...seen, ...newEntries.map(({ id }) => id)];
+    fs.writeFileSync(SEEN_PATH, JSON.stringify(newSeen), "utf-8");
+    // We're done here
     process.exit(0);
   });
-
-  client.login(process.env.TOKEN);
 }
 
-const feedUrl = `https://stackoverflow.com/feeds/tag/${process.env.TAG}`;
-
-fetch(feedUrl)
-  .then((res) => res.text())
-  .then((data) => {
-    const parser = new fxparser.XMLParser();
-    const content = parser.parse(data);
-    const items = content.feed.entry
-      .map(({ title, id }) => `${title} - ${id}`)
-      .slice(0, 2);
-    items.reverse();
-    msg(items);
-  });
+run();
