@@ -14,7 +14,7 @@ jobs:
       - name: StackBot Magic
         env:
           TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-          CHANNEL_ID: 954913555143090179
+          CHANNEL: "954913555143090179"
           TAG: javascript
         run: |
           npm i 
