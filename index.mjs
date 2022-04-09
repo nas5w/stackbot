@@ -23,6 +23,8 @@ function msg(items) {
         channel.send(item);
       }
     });
+
+    process.exit(0);
   });
 
   client.login(process.env.TOKEN);
