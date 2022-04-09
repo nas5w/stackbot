@@ -15,7 +15,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
           CHANNEL: "962325427819524118"
-          TAG: javascript
+          TAG: solid-js
         run: |
           npm i 
           node index.mjs
